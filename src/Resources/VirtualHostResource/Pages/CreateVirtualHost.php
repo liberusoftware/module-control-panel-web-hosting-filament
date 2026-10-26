@@ -1,0 +1,32 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Liberu\ControlPanel\WebHostingFilament\Resources\VirtualHostResource\Pages;
+
+use Filament\Resources\Pages\CreateRecord;
+use Illuminate\Database\Eloquent\Model;
+use Liberu\ControlPanel\WebHosting\Actions\CreateVirtualHost as CreateVirtualHostAction;
+use Liberu\ControlPanel\WebHosting\Models\Domain;
+use Liberu\ControlPanel\WebHostingFilament\Resources\VirtualHostResource;
+
+final class CreateVirtualHost extends CreateRecord
+{
+    protected static string $resource = VirtualHostResource::class;
+
+    protected function mutateFormDataBeforeCreate(array $data): array
+    {
+        abort_if(auth()->user()?->current_team_id === null, 403, 'A current team is required.');
+        $data['team_id'] = auth()->user()?->current_team_id;
+
+        return $data;
+    }
+
+    protected function handleRecordCreation(array $data): Model
+    {
+        abort_if(! isset($data['domain_id']), 422, 'A domain is required.');
+        $domain = Domain::query()->whereKey($data['domain_id'])->where('team_id', auth()->user()?->current_team_id)->firstOrFail();
+
+        return app(CreateVirtualHostAction::class)->execute($domain, $data);
+    }
+}
